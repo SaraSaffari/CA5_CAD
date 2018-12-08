@@ -1,48 +1,48 @@
-module upsampling_controller();
+module upsampling_controller(clk, rst, start, end_of_pixel, cnt_col, clear, start, 
+	SmuxFinal, SmuxFirst1, SmuxFirst2, SmuxEnd1, SmuxEnd2, Wrenb, en_cnt, shiften, SmuxFirst1, SmuxEnd1, done);
 
-	input clk, rst, end_of_pixel;
-	input[9:0] cnt_col;
 	parameter [2:0] IDLE = 4'd0, READY = 4'd1; WAIT = 4'd2, READ0 = 4'd3, READ1 = 4'd4, READ2 = 4'd5, 
 					READ3 = 4'd6, READ4 = 4'd7, READ5 = 4'd8;
 
-	output reg clear, SmuxFinal, SmuxFirst2, SmuxEnd2, Wrenb, en_cnt
-				en_rst_col, en_rst_row ,en_cnt_col ,en_cnt_row, shiften;
+	input clk, rst, start, end_of_pixel;
+	input[9:0] cnt_col;
+
+	output reg clear, SmuxFinal, SmuxFirst2, SmuxEnd2, Wrenb, en_cnt, shiften;
 	output reg [1:0]  SmuxFirst1, SmuxEnd1;
 	output done;
 
 
 	always @(ps) begin
-		{clear, Smux1, Wrenb, Yen_odd, Uen_odd, Ven_odd,
-			Temp_en,Yen_even, Uen_even, Ven_even, Cen} = 20'b0;
-		Smux2 = 2'b0;
+		{clear, SmuxFinal, SmuxFirst2, SmuxEnd2, Wrenb, en_cnt
+				, shiften, done} = 11'b0;
+		SmuxFirst1, SmuxEnd1 = 2'b0;
 
 		case(ps)
 			IDLE:
-				begin		clear = 1'b1; en_rst_col = 1'b1; 
-							en_rst_row = 1'b1;
+				begin		clear = 1'b1; rst_cnt = 1'b1;
 				end
 			READY:begin 
 							en_cnt = 1'b1;
 							SmuxFinal = 1'b0;
 				end
 			WAIT:
-				begin    	en_cnt_col = 1'b1;
+				begin    	// do nothing //
 
 				end	
-			READ0:begin		en_cnt_col = 1'b1;
-							shiften = 1'b1;
+			READ0:begin		shiften = 1'b1;
+
 				end
 			READ1:
-				begin		en_cnt_col = 1'b1;
-							shiften = 1'b1;
+				begin 		shiften = 1'b1;
+
 				end
 			READ2:
-				begin		en_cnt_col = 1'b1; shiften = 1'b1; Wrenb = 1'b1;
+				begin		shiften = 1'b1; Wrenb = 1'b1;
 							SmuxFirst1 = 2'd2; SmuxFirst2 = 1'b1; 
 							SmuxEnd1 = 1'b0; SmuxEnd2 = 1'b0;
 				end
 			READ3:
-				begin		Wrenb = 1'b1; en_cnt_col = 1'b1;
+				begin		Wrenb = 1'b1; 
 							SmuxFirst1 = 1'b1; SmuxFirst2 = 1'b0; 
 							SmuxEnd1 = 1'b0; SmuxEnd2 = 1'b0;
 				end
@@ -52,22 +52,22 @@ module upsampling_controller();
 								SmuxEnd1 = 1'b1; SmuxEnd2 = 1'b1;	
 							else 
 								SmuxEnd1 = 1'b0; SmuxEnd2 = 1'b0;
-							Wrenb = 1'b1; en_cnt_col = 1'b1; shiften = 1'b1;
+							Wrenb = 1'b1; shiften = 1'b1;
 				end
 			READ5:
 				begin		Wrenb = 1'b1; shiften = 1'b1;
-							if(cnt_col == 10'd320)
-								{
-									en_cnt_row = 1'b1;
-									en_rst_col = 1'b1;
-								}
+							// if(cnt_col == 10'd320)
+							// 	{
+							// 		en_cnt_row = 1'b1;
+							// 		en_rst_col = 1'b1;
+							// 	}
 			// default:	
 		endcase
 	end
 
 	always @(ps) begin
 		case(ps)
-			IDLE:	ns = READY;
+			IDLE:	ns = (start == 1'b1) ? READY : IDLE;
 			READY:  ns = WAIT;
 			WAIT: 	ns = READ0;
 			READ0:	ns = READ1;
@@ -75,8 +75,7 @@ module upsampling_controller();
 			READ2:	ns = READ3;
 			READ3:  ns = READ4;
 			READ4:  ns = READ5;
-			READ5:	ns = WAIT;
-			READ5:  ns = READ4;
+			READ5:	ns = (cnt_col == 10'd 320) ? WAIT : READ4;
 
 			default: ps = ps;
 		endcase
